@@ -10,12 +10,22 @@ const wss = new WebSocketServer({ server });
 
 const PORT = 8062;
 
-/**
- * WS clientlar:
- * - local sender (hikvision client)
- * - frontend listenerlar
- */
+/* ===================== CLIENTS ===================== */
 const clients = new Set();
+
+/**
+ * attendanceState:
+ * key: employeeId + date (YYYY-MM-DD)
+ * value: {
+ *   employeeId,
+ *   date,
+ *   firstIn,
+ *   lastOut,
+ *   currentStatus,
+ *   lastScanAt
+ * }
+ */
+const attendanceState = new Map();
 
 /* ===================== MIDDLEWARE ===================== */
 app.use(helmet());
@@ -27,6 +37,63 @@ app.use(
     max: 300,
   }),
 );
+
+/* ===================== HELPERS ===================== */
+function getDateKey(isoTime) {
+  return isoTime.slice(0, 10); // YYYY-MM-DD
+}
+
+function resolveAttendance({ employeeId, name, time }) {
+  const date = getDateKey(time);
+  const key = `${employeeId}_${date}`;
+  const now = Date.now();
+
+  let rec = attendanceState.get(key);
+
+  if (!rec) {
+    rec = {
+      employeeId,
+      name,
+      date,
+      firstIn: null,
+      lastOut: null,
+      currentStatus: "OUT",
+      lastScanAt: 0,
+    };
+  }
+
+  // 🔁 debounce: 5 sekund
+  if (now - rec.lastScanAt < 5000) {
+    return null;
+  }
+  rec.lastScanAt = now;
+
+  if (rec.currentStatus === "OUT") {
+    // 👉 KELDI
+    rec.currentStatus = "IN";
+
+    if (!rec.firstIn) {
+      rec.firstIn = time;
+    }
+  } else {
+    // 👉 KETDI
+    rec.currentStatus = "OUT";
+    rec.lastOut = time;
+  }
+
+  attendanceState.set(key, rec);
+
+  return {
+    employeeId,
+    name,
+    date,
+    firstIn: rec.firstIn,
+    lastOut: rec.lastOut,
+    status: rec.currentStatus,
+    label: rec.currentStatus === "IN" ? "KELDI" : "KETDI",
+    time,
+  };
+}
 
 /* ===================== WEBSOCKET ===================== */
 wss.on("connection", (ws, req) => {
@@ -45,24 +112,29 @@ wss.on("connection", (ws, req) => {
     try {
       const parsed = JSON.parse(msg.toString());
 
-      /**
-       * LOCAL → SERVER (attendance_event)
-       */
+      /* =====================
+         LOCAL → SERVER
+      ===================== */
       if (parsed?.type === "attendance_event" && parsed?.data) {
         ws.role = "local";
 
-        console.log("📥 LOCAL EVENT:", parsed.data);
+        const resolved = resolveAttendance(parsed.data);
+        if (!resolved) return;
+
+        console.log(
+          `👤 ${resolved.name} (${resolved.employeeId}) → ${resolved.label}`,
+        );
 
         const out = JSON.stringify({
           type: "attendance_event",
-          data: parsed.data,
+          data: resolved,
         });
 
         // 🔁 FRONTENDlarga tarqatamiz
         clients.forEach((client) => {
           if (
             client !== ws &&
-            client.role !== "local" &&
+            client.role === "frontend" &&
             client.readyState === WebSocket.OPEN
           ) {
             client.send(out);
@@ -72,9 +144,9 @@ wss.on("connection", (ws, req) => {
         return;
       }
 
-      /**
-       * FRONTEND HELLO (ixtiyoriy)
-       */
+      /* =====================
+         FRONTEND HELLO
+      ===================== */
       if (parsed?.type === "frontend_hello") {
         ws.role = "frontend";
         return;
@@ -114,5 +186,5 @@ app.get("/health", (req, res) => {
 /* ===================== START ===================== */
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 WS Server ishga tushdi: ${PORT}`);
-  console.log(`🔌 WS: ws://SERVER_IP:${PORT}`);
+  console.log(`🔌 WS: wss://faceidserver.richman.uz`);
 });
