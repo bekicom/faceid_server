@@ -13,6 +13,7 @@ const attendanceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
       required: true,
+      index: true,
     },
 
     department: {
@@ -22,22 +23,30 @@ const attendanceSchema = new mongoose.Schema(
     },
 
     date: {
-      type: String,
+      type: String, // YYYY-MM-DD
+      required: true,
+      index: true,
+    },
+
+    firstEntry: {
+      type: Date,
       required: true,
     },
 
-    checkIn: Date,
-    checkOut: Date,
+    lastExit: {
+      type: Date,
+      required: true,
+    },
 
-    status: {
-      type: String,
-      enum: ["ON_TIME", "LATE", "EARLY_LEAVE"],
-      default: "ON_TIME",
+    totalHours: {
+      type: Number, // soat ko‘rinishida (masalan 12.5)
+      default: 0,
     },
   },
   { timestamps: true },
 );
 
+// Bir hodim uchun bir kunda bitta record
 attendanceSchema.index(
   { organizationId: 1, employee: 1, date: 1 },
   { unique: true },

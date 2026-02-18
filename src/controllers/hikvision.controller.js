@@ -1,4 +1,5 @@
 const Employee = require("../modules/employee.model");
+const Attendance = require("../modules/attendance.model");
 
 const findField = (obj, fieldNames) => {
   if (!obj || typeof obj !== "object") return null;
@@ -23,7 +24,7 @@ exports.deviceEvent = async (req, res) => {
 
     let data = null;
 
-    // 🔥 1️⃣ Multipart JSON ni olish
+    // 1️⃣ Multipart JSON
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         try {
@@ -33,7 +34,7 @@ exports.deviceEvent = async (req, res) => {
       }
     }
 
-    // 🔥 2️⃣ Oddiy JSON bo‘lsa
+    // 2️⃣ Oddiy JSON
     if (!data && req.body && Object.keys(req.body).length > 0) {
       try {
         const firstKey = Object.keys(req.body)[0];
@@ -58,31 +59,57 @@ exports.deviceEvent = async (req, res) => {
     ]);
 
     if (!employeeNo) {
-      console.log("❌ employeeNo topilmadi");
       return res.status(200).send("OK");
     }
 
     const dateTime =
       findField(data, ["dateTime", "DateTime"]) || new Date().toISOString();
 
+    const eventTime = new Date(dateTime);
+    const today = eventTime.toISOString().split("T")[0];
+
     const employee = await Employee.findOne({
       organizationId,
       employeeCode: employeeNo,
       isActive: true,
-    }).populate("department");
+    });
 
     if (!employee) {
       console.log("❌ DB da employee topilmadi:", employeeNo);
       return res.status(200).send("OK");
     }
 
-    console.log("===================================");
-    console.log("🏢 Filial:", organizationId);
-    console.log("👤 Hodim:", employee.fullName);
-    console.log("🆔 Code:", employee.employeeCode);
-    console.log("🏬 Bo‘lim:", employee.department?.name);
-    console.log("🕒 Vaqt:", dateTime);
-    console.log("===================================");
+    let attendance = await Attendance.findOne({
+      organizationId,
+      employee: employee._id,
+      date: today,
+    });
+
+    // 🟢 Birinchi scan → firstEntry
+    if (!attendance) {
+      await Attendance.create({
+        organizationId,
+        employee: employee._id,
+        department: employee.department,
+        date: today,
+        firstEntry: eventTime,
+        lastExit: eventTime,
+        totalHours: 0,
+      });
+
+      console.log(`✅ ${employee.fullName} → FIRST ENTRY`);
+    } else {
+      // 🔄 Har keyingi scan → lastExit yangilanadi
+      attendance.lastExit = eventTime;
+
+      const totalMs = attendance.lastExit - attendance.firstEntry;
+
+      attendance.totalHours = totalMs / (1000 * 60 * 60); // soat ko‘rinishida
+
+      await attendance.save();
+
+      console.log(`🔄 ${employee.fullName} → UPDATED EXIT`);
+    }
 
     return res.status(200).send("OK");
   } catch (err) {
