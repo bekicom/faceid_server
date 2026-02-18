@@ -20,7 +20,28 @@ const findField = (obj, fieldNames) => {
 exports.deviceEvent = async (req, res) => {
   try {
     const { organizationId } = req.params;
-    const data = req.body;
+
+    let data = null;
+
+    // 🔥 1️⃣ Multipart JSON ni olish
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        try {
+          data = JSON.parse(file.buffer.toString());
+          break;
+        } catch {}
+      }
+    }
+
+    // 🔥 2️⃣ Oddiy JSON bo‘lsa
+    if (!data && req.body && Object.keys(req.body).length > 0) {
+      try {
+        const firstKey = Object.keys(req.body)[0];
+        data = JSON.parse(req.body[firstKey]);
+      } catch {
+        data = req.body;
+      }
+    }
 
     if (!data) return res.status(200).send("OK");
 
@@ -37,13 +58,13 @@ exports.deviceEvent = async (req, res) => {
     ]);
 
     if (!employeeNo) {
+      console.log("❌ employeeNo topilmadi");
       return res.status(200).send("OK");
     }
 
     const dateTime =
       findField(data, ["dateTime", "DateTime"]) || new Date().toISOString();
 
-    // 🔥 EMPLOYEE NI DB DAN TOPAMIZ
     const employee = await Employee.findOne({
       organizationId,
       employeeCode: employeeNo,
@@ -58,9 +79,9 @@ exports.deviceEvent = async (req, res) => {
     console.log("===================================");
     console.log("🏢 Filial:", organizationId);
     console.log("👤 Hodim:", employee.fullName);
-    console.log("🆔 Employee Code:", employee.employeeCode);
+    console.log("🆔 Code:", employee.employeeCode);
     console.log("🏬 Bo‘lim:", employee.department?.name);
-    console.log("🕒 Sana/Vaqt:", dateTime);
+    console.log("🕒 Vaqt:", dateTime);
     console.log("===================================");
 
     return res.status(200).send("OK");
