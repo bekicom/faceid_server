@@ -24,7 +24,7 @@ exports.deviceEvent = async (req, res) => {
 
     let data = null;
 
-    // 1️⃣ Multipart JSON
+    // 1️⃣ Multipart JSON (Hikvision)
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         try {
@@ -72,10 +72,10 @@ exports.deviceEvent = async (req, res) => {
       organizationId,
       employeeCode: employeeNo,
       isActive: true,
-    });
+    }).populate("department");
 
     if (!employee) {
-      console.log("❌ DB da employee topilmadi:", employeeNo);
+      console.log("❌ Employee topilmadi:", employeeNo);
       return res.status(200).send("OK");
     }
 
@@ -85,30 +85,52 @@ exports.deviceEvent = async (req, res) => {
       date: today,
     });
 
-    // 🟢 Birinchi scan → firstEntry
+    // 🟢 FIRST ENTRY
     if (!attendance) {
       await Attendance.create({
         organizationId,
         employee: employee._id,
-        department: employee.department,
+        department: employee.department._id,
         date: today,
         firstEntry: eventTime,
         lastExit: eventTime,
         totalHours: 0,
       });
 
-      console.log(`✅ ${employee.fullName} → FIRST ENTRY`);
-    } else {
-      // 🔄 Har keyingi scan → lastExit yangilanadi
+      console.log("===================================");
+      console.log("🏢 Filial:", organizationId);
+      console.log("🏬 Bo‘lim:", employee.department?.name);
+      console.log("👤 Hodim:", employee.fullName);
+      console.log("🆔 Code:", employee.employeeCode);
+      console.log("🟢 FIRST ENTRY:", eventTime);
+      console.log("===================================");
+    }
+
+    // 🔄 UPDATED EXIT
+    else {
+      const diffSeconds = (eventTime - attendance.lastExit) / 1000;
+
+      // ⚠️ Double scan protection (5 sec)
+      if (diffSeconds < 5) {
+        return res.status(200).send("OK");
+      }
+
       attendance.lastExit = eventTime;
 
       const totalMs = attendance.lastExit - attendance.firstEntry;
 
-      attendance.totalHours = totalMs / (1000 * 60 * 60); // soat ko‘rinishida
+      attendance.totalHours = totalMs / (1000 * 60 * 60);
 
       await attendance.save();
 
-      console.log(`🔄 ${employee.fullName} → UPDATED EXIT`);
+      console.log("===================================");
+      console.log("🏢 Filial:", organizationId);
+      console.log("🏬 Bo‘lim:", employee.department?.name);
+      console.log("👤 Hodim:", employee.fullName);
+      console.log("🆔 Code:", employee.employeeCode);
+      console.log("🔄 UPDATED EXIT:", eventTime);
+      console.log("⏱ Umumiy soat:", attendance.totalHours.toFixed(2));
+      console.log("===================================");
     }
 
     return res.status(200).send("OK");
