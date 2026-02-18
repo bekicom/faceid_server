@@ -1,3 +1,5 @@
+const Employee = require("../modules/employee.model");
+
 const findField = (obj, fieldNames) => {
   if (!obj || typeof obj !== "object") return null;
 
@@ -41,13 +43,25 @@ exports.deviceEvent = async (req, res) => {
     const dateTime =
       findField(data, ["dateTime", "DateTime"]) || new Date().toISOString();
 
+    // 🔥 EMPLOYEE NI DB DAN TOPAMIZ
+    const employee = await Employee.findOne({
+      organizationId,
+      employeeCode: employeeNo,
+      isActive: true,
+    }).populate("department");
+
+    if (!employee) {
+      console.log("❌ DB da employee topilmadi:", employeeNo);
+      return res.status(200).send("OK");
+    }
+
     console.log("===================================");
     console.log("🏢 Filial:", organizationId);
-    console.log("👤 Employee No:", employeeNo);
+    console.log("👤 Hodim:", employee.fullName);
+    console.log("🆔 Employee Code:", employee.employeeCode);
+    console.log("🏬 Bo‘lim:", employee.department?.name);
     console.log("🕒 Sana/Vaqt:", dateTime);
     console.log("===================================");
-
-    // 🔥 Keyin shu yerga attendance logika yozamiz
 
     return res.status(200).send("OK");
   } catch (err) {
