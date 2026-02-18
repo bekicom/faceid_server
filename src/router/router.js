@@ -1,5 +1,22 @@
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage() });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const authController = require("../controllers/auth.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 const deviceController = require("../controllers/device.controller");
@@ -23,6 +40,7 @@ router.get("/organizations", organizationController.getOrganizations);
 router.get("/organizations/:id", organizationController.getOneOrganization);
 router.post(
   "/hikvision/event/:organizationId",
+  upload.any(),
   hikvisionController.deviceEvent,
 );
 router.get("/me", authMiddleware, (req, res) => {
