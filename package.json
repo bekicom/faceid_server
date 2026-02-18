@@ -1,28 +1,27 @@
 {
-  "name": "hikvision-websocket-server",
+  "name": "face-id-soqa",
   "version": "1.0.0",
-  "type": "module",
-  "description": "Hikvision webhook to WebSocket server",
-  "main": "server.js",
+  "description": "FaceID Universal SaaS Platform",
+  "main": "src/server.js",
+  "type": "commonjs",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js"
   },
+  "keywords": [],
+  "author": "Bekzod",
+  "license": "ISC",
   "dependencies": {
-    "child_process": "^1.0.2",
-    "digest-fetch": "^3.1.1",
-    "dotenv": "^17.2.1",
-    "express": "^4.21.2",
-    "express-rate-limit": "^8.0.1",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
     "helmet": "^8.1.0",
-    "react-scripts": "^5.0.1",
-    "ws": "^8.18.3"
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.2.1",
+    "morgan": "^1.10.1"
   },
-  "keywords": [
-    "hikvision",
-    "websocket",
-    "webhook"
-  ],
-  "author": "Your Name",
-  "license": "MIT"
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
 }
