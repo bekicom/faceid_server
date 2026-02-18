@@ -43,9 +43,11 @@ exports.createEmployee = async (req, res) => {
 ========================= */
 exports.getEmployees = async (req, res) => {
   try {
+    const { organizationId } = req.query;
+
     const employees = await Employee.find({
-      organizationId: req.organizationId,
-    });
+      organizationId,
+    }).populate("department", "name");
 
     res.json({
       success: true,

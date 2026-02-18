@@ -3,20 +3,6 @@ const router = express.Router();
 const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 const authController = require("../controllers/auth.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 const deviceController = require("../controllers/device.controller");
@@ -34,6 +20,8 @@ router.post("/device/event/:key", deviceController.deviceEvent);
 router.post("/employee/create", authMiddleware, employeeid.createEmployee);
 router.get("/employee/list", authMiddleware, employeeid.getEmployees);
 router.post("/departments", departmentController.createDepartment);
+router.get("/departments/:organizationId", departmentController.getDepartments);
+router.get("/departments", departmentController.getAllDepartments);
 
 router.post("/organizations", organizationController.createOrganization);
 router.get("/organizations", organizationController.getOrganizations);
@@ -45,8 +33,6 @@ router.post(
 );
 router.get("/attendance/:organizationId", attendanceController.getAttendance);
 
-
-
 router.get("/me", authMiddleware, (req, res) => {
   res.json({
     success: true,
@@ -54,8 +40,5 @@ router.get("/me", authMiddleware, (req, res) => {
     organizationId: req.organizationId,
   });
 });
-
-
-
 
 module.exports = router;

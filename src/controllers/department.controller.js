@@ -39,3 +39,48 @@ exports.createDepartment = async (req, res) => {
     });
   }
 };
+
+
+exports.getDepartments = async (req, res) => {
+  try {
+    const { organizationId } = req.params;
+
+    const departments = await Department.find({
+      organizationId,
+      isActive: { $ne: false }, // agar modelda bo‘lsa
+    }).sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: departments.length,
+      data: departments,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Server xatosi",
+    });
+  }
+};
+
+
+exports.getAllDepartments = async (req, res) => {
+  try {
+    const departments = await Department.find({})
+      .populate("organizationId", "name")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: departments.length,
+      data: departments,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Server xatosi",
+    });
+  }
+};
