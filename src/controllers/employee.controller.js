@@ -57,3 +57,97 @@ exports.getEmployees = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+/* =========================
+   GET ONE EMPLOYEE
+========================= */
+exports.getOneEmployee = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const employee = await Employee.findById(id)
+      .populate("department", "name");
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee topilmadi"
+      });
+    }
+
+    res.json({
+      success: true,
+      data: employee
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+/* =========================
+   UPDATE EMPLOYEE
+========================= */
+exports.updateEmployee = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      fullName,
+      employeeCode,
+      department
+    } = req.body;
+
+    const employee = await Employee.findById(id);
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee topilmadi"
+      });
+    }
+
+    employee.fullName = fullName || employee.fullName;
+    employee.employeeCode = employeeCode || employee.employeeCode;
+    employee.department = department || employee.department;
+
+    await employee.save();
+
+    res.json({
+      success: true,
+      message: "Employee yangilandi",
+      data: employee
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+/* =========================
+   DELETE EMPLOYEE
+========================= */
+exports.deleteEmployee = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const employee = await Employee.findById(id);
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee topilmadi"
+      });
+    }
+
+    employee.isActive = false;
+    await employee.save();
+
+    res.json({
+      success: true,
+      message: "Employee o‘chirildi (soft delete)"
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};

@@ -84,3 +84,81 @@ exports.getAllDepartments = async (req, res) => {
     });
   }
 };
+
+// 🔹 UPDATE DEPARTMENT
+exports.updateDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      checkInTime,
+      checkOutTime,
+      lateAfterMinutes,
+      earlyLeaveMinutes,
+    } = req.body;
+
+    const department = await Department.findById(id);
+
+    if (!department) {
+      return res.status(404).json({
+        success: false,
+        message: "Department topilmadi",
+      });
+    }
+
+    department.name = name || department.name;
+    department.checkInTime = checkInTime || department.checkInTime;
+    department.checkOutTime = checkOutTime || department.checkOutTime;
+
+    if (lateAfterMinutes !== undefined)
+      department.lateAfterMinutes = lateAfterMinutes;
+
+    if (earlyLeaveMinutes !== undefined)
+      department.earlyLeaveMinutes = earlyLeaveMinutes;
+
+    await department.save();
+
+    res.json({
+      success: true,
+      message: "Department yangilandi",
+      data: department,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Server xatosi",
+    });
+  }
+};
+
+
+// 🔹 DELETE DEPARTMENT (Soft delete)
+exports.deleteDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const department = await Department.findById(id);
+
+    if (!department) {
+      return res.status(404).json({
+        success: false,
+        message: "Department topilmadi",
+      });
+    }
+
+    department.isActive = false;
+    await department.save();
+
+    res.json({
+      success: true,
+      message: "Department o‘chirildi (soft delete)",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Server xatosi",
+    });
+  }
+};

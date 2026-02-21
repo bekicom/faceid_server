@@ -19,13 +19,25 @@ router.get("/device/list", authMiddleware, deviceController.getDevices);
 router.post("/device/event/:key", deviceController.deviceEvent);
 router.post("/employee/create", authMiddleware, employeeid.createEmployee);
 router.get("/employee/list", authMiddleware, employeeid.getEmployees);
+router.get("/employee/:id", employeeid.getOneEmployee);
+router.put("/employee/:id", employeeid.updateEmployee);
+router.delete("/employee/:id", employeeid.deleteEmployee);
+
+
+
 router.post("/departments", departmentController.createDepartment);
 router.get("/departments/:organizationId", departmentController.getDepartments);
 router.get("/departments", departmentController.getAllDepartments);
+router.put("/departments/:id", departmentController.updateDepartment);
+router.delete("/departments/:id", departmentController.deleteDepartment);
+
+// ================= ORGANIZATIONS =================
 
 router.post("/organizations", organizationController.createOrganization);
 router.get("/organizations", organizationController.getOrganizations);
 router.get("/organizations/:id", organizationController.getOneOrganization);
+router.put("/organizations/:id", organizationController.updateOrganization);
+router.delete("/organizations/:id", organizationController.deleteOrganization);
 router.post(
   "/hikvision/event/:organizationId",
   upload.any(),
