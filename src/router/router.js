@@ -11,6 +11,9 @@ const departmentController = require("../controllers/department.controller");
 const hikvisionController = require("../controllers/hikvision.controller");
 const attendanceController = require("../controllers/attendance.controller");
 const organizationController = require("../controllers/organization.controller");
+const dashboardController = require("../controllers/dashboard.controller");
+
+
 
 router.post("/auth/register", authController.register);
 router.post("/auth/login", authController.login);
@@ -44,6 +47,17 @@ router.post(
   hikvisionController.deviceEvent,
 );
 router.get("/attendance/:organizationId", attendanceController.getAttendance);
+
+
+
+router.get("/dashboard/:organizationId", dashboardController.getDailyDashboard);
+router.get(
+  "/dashboard/employee/:employeeId",
+  dashboardController.getEmployeeMonthlyStats,
+);
+
+
+
 
 router.get("/me", authMiddleware, (req, res) => {
   res.json({
