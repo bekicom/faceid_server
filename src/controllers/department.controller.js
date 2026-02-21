@@ -86,16 +86,37 @@ exports.getAllDepartments = async (req, res) => {
 };
 
 // 🔹 UPDATE DEPARTMENT
+const mongoose = require("mongoose");
+
 exports.updateDepartment = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      name,
-      checkInTime,
-      checkOutTime,
-      lateAfterMinutes,
-      earlyLeaveMinutes,
-    } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Noto‘g‘ri ID",
+      });
+    }
+
+    const allowedFields = [
+      "name",
+      "checkInTime",
+      "checkOutTime",
+      "lateAfterMinutes",
+      "earlyLeaveMinutes",
+    ];
+
+    const bodyKeys = Object.keys(req.body);
+
+    const invalidField = bodyKeys.find((key) => !allowedFields.includes(key));
+
+    if (invalidField) {
+      return res.status(400).json({
+        success: false,
+        message: `Ruxsat etilmagan field: ${invalidField}`,
+      });
+    }
 
     const department = await Department.findById(id);
 
@@ -106,15 +127,29 @@ exports.updateDepartment = async (req, res) => {
       });
     }
 
-    department.name = name || department.name;
-    department.checkInTime = checkInTime || department.checkInTime;
-    department.checkOutTime = checkOutTime || department.checkOutTime;
+    // ⏰ Time format validation (HH:MM)
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-    if (lateAfterMinutes !== undefined)
-      department.lateAfterMinutes = lateAfterMinutes;
+    if (req.body.checkInTime && !timeRegex.test(req.body.checkInTime)) {
+      return res.status(400).json({
+        success: false,
+        message: "checkInTime noto‘g‘ri format (HH:MM)",
+      });
+    }
 
-    if (earlyLeaveMinutes !== undefined)
-      department.earlyLeaveMinutes = earlyLeaveMinutes;
+    if (req.body.checkOutTime && !timeRegex.test(req.body.checkOutTime)) {
+      return res.status(400).json({
+        success: false,
+        message: "checkOutTime noto‘g‘ri format (HH:MM)",
+      });
+    }
+
+    // Update qilish
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        department[field] = req.body[field];
+      }
+    });
 
     await department.save();
 
@@ -124,7 +159,7 @@ exports.updateDepartment = async (req, res) => {
       data: department,
     });
   } catch (err) {
-    console.error(err);
+    console.error("UPDATE DEPARTMENT ERROR:", err);
     res.status(500).json({
       success: false,
       message: "Server xatosi",

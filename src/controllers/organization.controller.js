@@ -96,12 +96,25 @@ exports.getOneOrganization = async (req, res) => {
 exports.updateOrganization = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, phone, address } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
         message: "Noto‘g‘ri ID",
+      });
+    }
+
+    const allowedFields = ["name", "phone", "address"];
+
+    const bodyKeys = Object.keys(req.body);
+
+    // ❗ Agar ruxsat etilmagan field bo‘lsa error beramiz
+    const invalidField = bodyKeys.find((key) => !allowedFields.includes(key));
+
+    if (invalidField) {
+      return res.status(400).json({
+        success: false,
+        message: `Ruxsat etilmagan field: ${invalidField}`,
       });
     }
 
@@ -113,9 +126,11 @@ exports.updateOrganization = async (req, res) => {
       });
     }
 
-    // Agar phone o‘zgartirilsa unique tekshiramiz
-    if (phone && phone !== organization.phone) {
-      const existing = await Organization.findOne({ phone });
+    if (req.body.phone && req.body.phone !== organization.phone) {
+      const existing = await Organization.findOne({
+        phone: req.body.phone,
+      });
+
       if (existing) {
         return res.status(400).json({
           success: false,
@@ -124,9 +139,11 @@ exports.updateOrganization = async (req, res) => {
       }
     }
 
-    organization.name = name ?? organization.name;
-    organization.phone = phone ?? organization.phone;
-    organization.address = address ?? organization.address;
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        organization[field] = req.body[field];
+      }
+    });
 
     await organization.save();
 
