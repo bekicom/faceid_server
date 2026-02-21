@@ -1,6 +1,8 @@
 const Employee = require("../modules/employee.model");
 const Attendance = require("../modules/attendance.model");
 
+const mongoose = require("mongoose");
+
 /* =========================================
    DAILY DASHBOARD
    GET /dashboard/:organizationId?date=2026-02-21
@@ -66,6 +68,7 @@ exports.getDailyDashboard = async (req, res) => {
    EMPLOYEE MONTHLY STATS
    GET /dashboard/employee/:employeeId?year=2026&month=2
 ========================================= */
+
 exports.getEmployeeMonthlyStats = async (req, res) => {
   try {
     const { employeeId } = req.params;
@@ -78,24 +81,33 @@ exports.getEmployeeMonthlyStats = async (req, res) => {
       });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Noto‘g‘ri employeeId",
+      });
+    }
+
     const startDate = `${year}-${month.padStart(2, "0")}-01`;
     const endDate = `${year}-${month.padStart(2, "0")}-31`;
 
     const records = await Attendance.find({
       employee: employeeId,
-      date: {
-        $gte: startDate,
-        $lte: endDate,
-      },
+      date: { $gte: startDate, $lte: endDate },
     }).populate("department");
 
     let totalMinutes = 0;
     let lateDays = 0;
     let lateMinutesTotal = 0;
 
+    const dailyDetails = [];
+
     records.forEach((r) => {
-      // ✅ Jami ishlagan minut
-      totalMinutes += Math.floor((r.totalHours || 0) * 60);
+      const workedMinutes = Math.floor((r.totalHours || 0) * 60);
+      totalMinutes += workedMinutes;
+
+      let lateMinutes = 0;
+      let isLate = false;
 
       if (r.firstEntry && r.department) {
         const checkIn = r.department.checkInTime;
@@ -108,16 +120,31 @@ exports.getEmployeeMonthlyStats = async (req, res) => {
         const entryMinutes = entry.getHours() * 60 + entry.getMinutes();
 
         if (entryMinutes > checkInMinutes) {
+          isLate = true;
           lateDays++;
-          lateMinutesTotal += entryMinutes - checkInMinutes;
+          lateMinutes = entryMinutes - checkInMinutes;
+          lateMinutesTotal += lateMinutes;
         }
       }
+
+      dailyDetails.push({
+        date: r.date,
+        firstEntry: r.firstEntry,
+        lastExit: r.lastExit,
+        workedMinutes,
+        workedTime: `${Math.floor(workedMinutes / 60)} soat ${
+          workedMinutes % 60
+        } minut`,
+        isLate,
+        lateMinutes,
+        lateTime: `${Math.floor(lateMinutes / 60)} soat ${
+          lateMinutes % 60
+        } minut`,
+      });
     });
 
-    const presentDays = records.length;
-
     const workedHours = Math.floor(totalMinutes / 60);
-    const workedMinutes = totalMinutes % 60;
+    const workedRemainingMinutes = totalMinutes % 60;
 
     const lateHours = Math.floor(lateMinutesTotal / 60);
     const lateRemainingMinutes = lateMinutesTotal % 60;
@@ -125,16 +152,22 @@ exports.getEmployeeMonthlyStats = async (req, res) => {
     res.json({
       success: true,
       data: {
-        presentDays,
-        lateDays,
-        totalWorkedMinutes: totalMinutes,
-        totalWorkedTime: `${workedHours} soat ${workedMinutes} minut`,
-        totalLateMinutes: lateMinutesTotal,
-        totalLateTime: `${lateHours} soat ${lateRemainingMinutes} minut`,
+        summary: {
+          presentDays: records.length,
+          lateDays,
+          totalWorkedMinutes: totalMinutes,
+          totalWorkedTime: `${workedHours} soat ${workedRemainingMinutes} minut`,
+          totalLateMinutes: lateMinutesTotal,
+          totalLateTime: `${lateHours} soat ${lateRemainingMinutes} minut`,
+        },
+        dailyDetails,
       },
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("MONTHLY STATS ERROR:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };

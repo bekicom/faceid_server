@@ -1,59 +1,105 @@
 const Attendance = require("../modules/attendance.model");
-
+const Employee = require("../modules/employee.model");
 exports.getAttendance = async (req, res) => {
   try {
     const { organizationId } = req.params;
-    const { date, departmentId } = req.query;
 
-    const filter = { organizationId };
+    const today = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "Asia/Tashkent" }),
+    )
+      .toISOString()
+      .slice(0, 10);
 
-    if (date) filter.date = date;
-    if (departmentId) filter.department = departmentId;
+    // 🔹 1. Hamma employee
+    const employees = await Employee.find({
+      organizationId,
+      isActive: { $ne: false },
+    }).populate("department");
 
-    const records = await Attendance.find(filter)
-      .populate("employee", "fullName employeeCode")
-      .populate("department", "name")
-      .sort({ date: -1 });
+    // 🔹 2. Bugungi attendance yozuvlari
+    const records = await Attendance.find({
+      organizationId,
+      date: today,
+    });
 
-    const formatted = records.map((r) => {
-      const totalMinutes = Math.floor(r.totalHours * 60);
+    // 🔹 Attendance map (tez qidirish uchun)
+    const recordMap = {};
+    records.forEach((r) => {
+      recordMap[r.employee.toString()] = r;
+    });
 
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
+    const result = employees.map((emp) => {
+      const attendance = recordMap[emp._id.toString()];
 
-      let workedTime = "";
+      // ❌ Agar kelmagan bo‘lsa
+      if (!attendance) {
+        return {
+          employee: {
+            _id: emp._id,
+            fullName: emp.fullName,
+            employeeCode: emp.employeeCode,
+          },
+          date: today,
+          status: "Absent",
+          workedMinutes: 0,
+          workedTime: "0 minut",
+          lateMinutes: 0,
+          earlyLeaveMinutes: 0,
+        };
+      }
 
-      if (hours > 0 && minutes > 0) {
-        workedTime = `${hours} soat ${minutes} minut`;
-      } else if (hours > 0) {
-        workedTime = `${hours} soat`;
-      } else {
-        workedTime = `${minutes} minut`;
+      const totalMinutes = Math.floor((attendance.totalHours || 0) * 60);
+
+      let status = "On Time";
+      let lateMinutes = 0;
+
+      if (emp.department && attendance.firstEntry) {
+        const checkIn = emp.department.checkInTime;
+        const grace = emp.department.lateAfterMinutes || 0;
+
+        const [h, m] = checkIn.split(":");
+        const checkInMinutes = parseInt(h) * 60 + parseInt(m) + grace;
+
+        const entry = new Date(attendance.firstEntry);
+        const entryMinutes = entry.getHours() * 60 + entry.getMinutes();
+
+        if (entryMinutes > checkInMinutes) {
+          lateMinutes = entryMinutes - checkInMinutes;
+          status = "Late";
+        }
       }
 
       return {
-        _id: r._id,
-        date: r.date,
-        firstEntry: r.firstEntry,
-        lastExit: r.lastExit,
+        employee: {
+          _id: emp._id,
+          fullName: emp.fullName,
+          employeeCode: emp.employeeCode,
+        },
+        date: today,
+        firstEntry: attendance.firstEntry,
+        lastExit: attendance.lastExit,
         workedMinutes: totalMinutes,
-        workedTime,
-        employee: r.employee,
-        department: r.department,
+        workedTime: `${Math.floor(totalMinutes / 60)} soat ${
+          totalMinutes % 60
+        } minut`,
+        lateMinutes,
+        status,
       };
     });
 
     res.json({
       success: true,
-      count: formatted.length,
-      data: formatted,
+      date: today,
+      totalEmployees: employees.length,
+      presentCount: records.length,
+      absentCount: employees.length - records.length,
+      data: result,
     });
   } catch (err) {
-    console.error(err);
+    console.error("GET TODAY ATTENDANCE ERROR:", err);
     res.status(500).json({
       success: false,
       message: "Server error",
     });
   }
 };
-
