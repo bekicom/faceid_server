@@ -35,7 +35,7 @@ const attendanceSchema = new mongoose.Schema(
 
     lastExit: {
       type: Date,
-      required: true,
+      default: null,
     },
 
     totalHours: {

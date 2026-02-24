@@ -1,5 +1,6 @@
 const Employee = require("../modules/employee.model");
 const Attendance = require("../modules/attendance.model");
+const MIN_RESCAN_SECONDS = 5 * 60;
 
 const findField = (obj, fieldNames) => {
   if (!obj || typeof obj !== "object") return null;
@@ -93,7 +94,7 @@ exports.deviceEvent = async (req, res) => {
         department: employee.department._id,
         date: today,
         firstEntry: eventTime,
-        lastExit: eventTime,
+        lastExit: null,
         totalHours: 0,
       });
 
@@ -108,10 +109,11 @@ exports.deviceEvent = async (req, res) => {
 
     // 🔄 UPDATED EXIT
     else {
-      const diffSeconds = (eventTime - attendance.lastExit) / 1000;
+      const lastMarkTime = attendance.lastExit || attendance.firstEntry;
+      const diffSeconds = (eventTime - lastMarkTime) / 1000;
 
-      // ⚠️ Double scan protection (5 sec)
-      if (diffSeconds < 5) {
+      // ⚠️ Double scan protection (5 min)
+      if (diffSeconds < MIN_RESCAN_SECONDS) {
         return res.status(200).send("OK");
       }
 
