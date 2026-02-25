@@ -1,5 +1,32 @@
 const Attendance = require("../modules/attendance.model");
 const Employee = require("../modules/employee.model");
+
+const toUtcIso = (value) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const getTashkentMinutes = (value) => {
+  if (!value) return null;
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Tashkent",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(date);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+
+  return hour * 60 + minute;
+};
+
 exports.getAttendance = async (req, res) => {
   try {
     const { organizationId } = req.params;
@@ -60,10 +87,9 @@ exports.getAttendance = async (req, res) => {
         const [h, m] = checkIn.split(":");
         const checkInMinutes = parseInt(h) * 60 + parseInt(m) + grace;
 
-        const entry = new Date(attendance.firstEntry);
-        const entryMinutes = entry.getHours() * 60 + entry.getMinutes();
+        const entryMinutes = getTashkentMinutes(attendance.firstEntry);
 
-        if (entryMinutes > checkInMinutes) {
+        if (entryMinutes !== null && entryMinutes > checkInMinutes) {
           lateMinutes = entryMinutes - checkInMinutes;
           status = "Late";
         }
@@ -76,8 +102,8 @@ exports.getAttendance = async (req, res) => {
           employeeCode: emp.employeeCode,
         },
         date: today,
-        firstEntry: attendance.firstEntry,
-        lastExit: attendance.lastExit,
+        firstEntry: toUtcIso(attendance.firstEntry),
+        lastExit: toUtcIso(attendance.lastExit),
         workedMinutes: totalMinutes,
         workedTime: `${Math.floor(totalMinutes / 60)} soat ${
           totalMinutes % 60
